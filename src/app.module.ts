@@ -6,6 +6,7 @@ import { JwtConstants } from './auth/auth.constants';
 import { AuthService } from './auth/auth.service';
 import { JwtStrategy } from './auth/jwt.strategy';
 import { PrismaService } from './services/prisma.service';
+import { SortService } from './services/sort.service';
 import { UserService } from './services/users.service';
 
 @Module({
@@ -17,6 +18,6 @@ import { UserService } from './services/users.service';
     }),
   ],
   controllers: [ApiController],
-  providers: [PrismaService, JwtStrategy, AuthService, UserService],
+  providers: [PrismaService, JwtStrategy, AuthService, UserService, SortService],
 })
 export class AppModule {}

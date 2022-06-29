@@ -1,6 +1,7 @@
-import { Body, ConflictException, Controller, Delete, Get, HttpCode, NotFoundException, Param, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
-import { time } from 'console';
+import { BadRequestException, Body, ConflictException, Controller, Delete, Get, HttpCode, NotFoundException, Param, Post, Req, UnauthorizedException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from 'src/auth/auth.service';
+import { parse } from 'csv-parse';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { AdminAuthGuard } from 'src/auth/super.guard';
 import { PrismaService } from 'src/services/prisma.service';
@@ -8,10 +9,11 @@ import { UserService } from 'src/services/users.service';
 import { StudentDTO } from './DTOs/base-data.dto';
 import { LoginDTO } from './DTOs/login.dto';
 import { SignupDTO } from './DTOs/signup.dto';
+import { SortService } from 'src/services/sort.service';
 
 @Controller('api')
 export class ApiController {
-    constructor(private readonly auth: AuthService, private readonly user: UserService, private readonly prisma: PrismaService) {}
+    constructor(private readonly auth: AuthService, private readonly user: UserService, private readonly prisma: PrismaService, private readonly sortService: SortService) {}
 
     @Post('auth/login')
     @HttpCode(200)
@@ -94,33 +96,40 @@ export class ApiController {
             }));
         }
 
+        let rawStudents = await this.prisma.student.findMany({
+            orderBy: {
+                name: 'asc',
+            }
+        });
+        let students: StudentDTO[] = await Promise.all(
+            rawStudents.map<StudentDTO>((student) => ({
+                status: 'EXACT',
+                name: student.name,
+                email: student.email,
+                monday: student.mon,
+                tuesday: student.tues,
+                wednesday: student.wed,
+                thursday: student.thrs,
+                friday: student.fri,
+                subjects: student.subject,
+                mentor: {
+                    name: 'Jeff Williams',
+                    monday: ['6:30-7:30'],
+                    tuesday: ['6:30-7:30'],
+                    wednesday: ['6:30-7:30'],
+                    thursday: ['6:30-7:30', '7:30-8:30'],
+                    friday: ['6:30-7:30'],
+                    subjects: ['Math'],
+                    students: [],
+                },
+            })),
+        );
+
         let buffer = {
             user: {
                 isViewOnly: user.isViewOnly,
             },
-            students: <StudentDTO[]>[
-                {
-                    status: 'EXACT',
-                    name: 'John Sue',
-                    email: 'john@ex.com',
-                    monday: ['6:30-7:30'],
-                    tuesday: ['6:30-7:30'],
-                    wednesday: ['6:30-7:30'],
-                    thursday: ['6:30-7:30'],
-                    friday: ['6:30-7:30'],
-                    subjects: ['Math'],
-                    mentor: {
-                        name: 'Jeff Williams',
-                        monday: ['6:30-7:30'],
-                        tuesday: ['6:30-7:30'],
-                        wednesday: ['6:30-7:30'],
-                        thursday: ['6:30-7:30', '7:30-8:30'],
-                        friday: ['6:30-7:30'],
-                        subjects: ['Math'],
-                        students: [],
-                    }
-                }
-            ],
+            students: students,
             mentors: [
                 {
                     name: 'Jeff Williams',
@@ -172,5 +181,20 @@ export class ApiController {
                 id: target.id,
             },
         });
+    }
+
+    @Post('upload/student')
+    @UseInterceptors(FileInterceptor('file'))
+    @UseGuards(JwtAuthGuard, AdminAuthGuard)
+    async uploadStudentFile(@UploadedFile() file: Express.Multer.File) {
+        await this.sortService.importStudentsData(file.buffer.toString());
+        // throw new BadRequestException({'message': 'This is a test message'});
+    }
+
+    @Post('upload/mentor')
+    @UseInterceptors(FileInterceptor('file'))
+    @UseGuards(JwtAuthGuard, AdminAuthGuard)
+    async uploadMentorFile(@UploadedFile() file: Express.Multer.File) {
+        await this.sortService.importStudentsData(file.buffer.toString());
     }
 }

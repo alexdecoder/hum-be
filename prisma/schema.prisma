@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgres"
   url      = env("DATABASE_URL")
 }
 
@@ -19,4 +19,16 @@ model Admin {
 model Signup {
   id   Int    @id @default(autoincrement())
   uuid String @unique @default(uuid())
+}
+
+model Student {
+  id      Int      @id @default(autoincrement())
+  name    String
+  email   String
+  mon     String[]
+  tues    String[]
+  wed     String[]
+  thrs    String[]
+  fri     String[]
+  subject String[]
 }
